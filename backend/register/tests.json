@@ -1,47 +1,45 @@
 {
   "tests": [
     {
-      "name": "Успешная регистрация",
+      "name": "Регистрация нового пользователя",
       "method": "POST",
       "path": "/",
       "body": {
+        "action": "register",
         "firstName": "Иван",
         "lastName": "Тестов",
         "city": "Симферополь",
         "age": 25,
-        "phone": "+79991234567"
+        "phone": "+79991234500",
+        "password": "secret123"
       },
       "expectedStatus": 200,
       "expectedBody": { "ok": true },
       "bodyMatcher": "partial"
     },
     {
-      "name": "Блокировка возраста < 20",
+      "name": "Вход с правильным паролем",
       "method": "POST",
       "path": "/",
       "body": {
-        "firstName": "Юный",
-        "lastName": "Тест",
-        "city": "Ялта",
-        "age": 17,
-        "phone": "+79997654321"
+        "action": "login",
+        "phone": "+79991234500",
+        "password": "secret123"
       },
-      "expectedStatus": 400,
-      "expectedBody": { "ok": false },
+      "expectedStatus": 200,
+      "expectedBody": { "ok": true },
       "bodyMatcher": "partial"
     },
     {
-      "name": "Неверный формат телефона",
+      "name": "Вход с неверным паролем",
       "method": "POST",
       "path": "/",
       "body": {
-        "firstName": "Иван",
-        "lastName": "Тест",
-        "city": "Керчь",
-        "age": 30,
-        "phone": "89991234567"
+        "action": "login",
+        "phone": "+79991234500",
+        "password": "wrongpass"
       },
-      "expectedStatus": 400,
+      "expectedStatus": 401,
       "expectedBody": { "ok": false },
       "bodyMatcher": "partial"
     }

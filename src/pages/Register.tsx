@@ -70,7 +70,8 @@ function toE164(formatted: string): string {
 }
 
 export default function Register({ onRegister }: RegisterProps) {
-  const [form, setForm] = useState({ firstName: "", lastName: "", city: "", age: "", phone: "" });
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [form, setForm] = useState({ firstName: "", lastName: "", city: "", age: "", phone: "", password: "", showPassword: false });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [citySearch, setCitySearch] = useState("");
   const [showCities, setShowCities] = useState(false);
@@ -81,7 +82,23 @@ export default function Register({ onRegister }: RegisterProps) {
     c.toLowerCase().includes((citySearch || form.city).toLowerCase())
   ).slice(0, 8);
 
-  const validate = () => {
+  const setField = (key: string, val: string) => {
+    setForm(f => ({ ...f, [key]: val }));
+    setErrors(e => ({ ...e, [key]: "" }));
+  };
+
+  const validateLogin = () => {
+    const e: Record<string, string> = {};
+    const digits = form.phone.replace(/\D/g, "");
+    if (!form.phone) e.phone = "Введите номер телефона";
+    else if (digits.length < 11) e.phone = "Введите полный номер";
+    if (!form.password) e.password = "Введите пароль";
+    else if (form.password.length < 6) e.password = "Минимум 6 символов";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const validateRegister = () => {
     const e: Record<string, string> = {};
     if (!form.firstName.trim()) e.firstName = "Введите имя";
     if (!form.lastName.trim()) e.lastName = "Введите фамилию";
@@ -89,28 +106,25 @@ export default function Register({ onRegister }: RegisterProps) {
     if (!form.age) e.age = "Введите возраст";
     else if (Number(form.age) < 20) { setBlocked(true); return false; }
     else if (Number(form.age) > 80) e.age = "Введите корректный возраст";
-    const phoneDigits = form.phone.replace(/\D/g, "");
+    const digits = form.phone.replace(/\D/g, "");
     if (!form.phone) e.phone = "Введите номер телефона";
-    else if (phoneDigits.length < 11) e.phone = "Введите полный номер";
+    else if (digits.length < 11) e.phone = "Введите полный номер";
+    if (!form.password) e.password = "Введите пароль";
+    else if (form.password.length < 6) e.password = "Минимум 6 символов";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleSubmit = async () => {
-    if (!validate()) return;
+    const ok = mode === "login" ? validateLogin() : validateRegister();
+    if (!ok) return;
     setLoading(true);
     try {
-      const res = await fetch(REGISTER_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firstName: form.firstName.trim(),
-          lastName: form.lastName.trim(),
-          city: form.city,
-          age: Number(form.age),
-          phone: toE164(form.phone),
-        }),
-      });
+      const payload = mode === "login"
+        ? { action: "login", phone: toE164(form.phone), password: form.password }
+        : { action: "register", firstName: form.firstName.trim(), lastName: form.lastName.trim(), city: form.city, age: Number(form.age), phone: toE164(form.phone), password: form.password };
+
+      const res = await fetch(REGISTER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const data = await res.json();
       const parsed = typeof data === "string" ? JSON.parse(data) : data;
       if (parsed.ok) {
@@ -122,10 +136,16 @@ export default function Register({ onRegister }: RegisterProps) {
         setErrors(parsed.errors);
       }
     } catch {
-      setErrors({ phone: "Ошибка соединения, попробуйте ещё раз" });
+      setErrors({ password: "Ошибка соединения, попробуйте ещё раз" });
     } finally {
       setLoading(false);
     }
+  };
+
+  const switchMode = (m: "login" | "register") => {
+    setMode(m);
+    setErrors({});
+    setForm({ firstName: "", lastName: "", city: "", age: "", phone: "", password: "", showPassword: false });
   };
 
   if (blocked) {
@@ -226,164 +246,154 @@ export default function Register({ onRegister }: RegisterProps) {
           className="w-full max-w-[420px] rounded-2xl p-7 sm:p-9 animate-fade-in delay-100"
           style={{ background: "var(--reg-card)", border: "1px solid var(--reg-card-border)", boxShadow: "0 24px 60px rgba(0,0,0,0.25)" }}
         >
-          <div className="mb-7">
-            <h1 className="font-display font-black text-2xl sm:text-3xl mb-1.5" style={{ color: "var(--reg-text-primary)" }}>
-              Регистрация
-            </h1>
-            <p className="text-sm" style={{ color: "var(--reg-text-muted)" }}>
-              Заполните данные, чтобы войти в систему
-            </p>
+          {/* Переключатель вход / регистрация */}
+          <div className="flex mb-7 p-1 rounded-xl" style={{ background: "var(--reg-input-bg)" }}>
+            {(["login", "register"] as const).map(m => (
+              <button
+                key={m}
+                onClick={() => switchMode(m)}
+                className="flex-1 py-2.5 rounded-lg text-sm font-bold transition-all duration-200"
+                style={mode === m
+                  ? { background: "var(--reg-accent)", color: "#fff", boxShadow: "0 4px 12px rgba(232,119,46,0.35)" }
+                  : { color: "var(--reg-text-muted)" }
+                }
+              >
+                {m === "login" ? "Войти" : "Регистрация"}
+              </button>
+            ))}
           </div>
 
           <div className="space-y-4">
-            {/* Имя + Фамилия в ряд на sm+ */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Имя */}
-              <div>
-                <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: "var(--reg-label)" }}>Имя</label>
+
+            {/* ── ПОЛЯ ТОЛЬКО ДЛЯ РЕГИСТРАЦИИ ── */}
+            {mode === "register" && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: "var(--reg-label)" }}>Имя</label>
+                    <div className="relative">
+                      <Icon name="User" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--reg-icon)" }} />
+                      <input type="text" placeholder="Иван" value={form.firstName}
+                        onChange={e => setField("firstName", e.target.value)}
+                        className="w-full pl-9 pr-4 py-3 rounded-xl text-sm outline-none"
+                        style={{ background: "var(--reg-input-bg)", border: `1.5px solid ${errors.firstName ? "var(--reg-error)" : "var(--reg-input-border)"}`, color: "var(--reg-text-primary)" }}
+                        onFocus={e => { if (!errors.firstName) e.currentTarget.style.borderColor = "var(--reg-accent)"; }}
+                        onBlur={e => { if (!errors.firstName) e.currentTarget.style.borderColor = "var(--reg-input-border)"; }}
+                      />
+                    </div>
+                    {errors.firstName && <p className="text-xs mt-1" style={{ color: "var(--reg-error)" }}>{errors.firstName}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: "var(--reg-label)" }}>Фамилия</label>
+                    <div className="relative">
+                      <Icon name="User" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--reg-icon)" }} />
+                      <input type="text" placeholder="Иванов" value={form.lastName}
+                        onChange={e => setField("lastName", e.target.value)}
+                        className="w-full pl-9 pr-4 py-3 rounded-xl text-sm outline-none"
+                        style={{ background: "var(--reg-input-bg)", border: `1.5px solid ${errors.lastName ? "var(--reg-error)" : "var(--reg-input-border)"}`, color: "var(--reg-text-primary)" }}
+                        onFocus={e => { if (!errors.lastName) e.currentTarget.style.borderColor = "var(--reg-accent)"; }}
+                        onBlur={e => { if (!errors.lastName) e.currentTarget.style.borderColor = "var(--reg-input-border)"; }}
+                      />
+                    </div>
+                    {errors.lastName && <p className="text-xs mt-1" style={{ color: "var(--reg-error)" }}>{errors.lastName}</p>}
+                  </div>
+                </div>
+
+                {/* Город */}
                 <div className="relative">
-                  <Icon name="User" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--reg-icon)" }} />
-                  <input
-                    type="text"
-                    placeholder="Иван"
-                    value={form.firstName}
-                    onChange={e => { setForm(f => ({ ...f, firstName: e.target.value })); setErrors(er => ({ ...er, firstName: "" })); }}
-                    className="w-full pl-9 pr-4 py-3 rounded-xl text-sm outline-none transition-all"
-                    style={{
-                      background: "var(--reg-input-bg)",
-                      border: `1.5px solid ${errors.firstName ? "var(--reg-error)" : "var(--reg-input-border)"}`,
-                      color: "var(--reg-text-primary)",
-                    }}
-                    onFocus={e => { if (!errors.firstName) e.currentTarget.style.borderColor = "var(--reg-accent)"; }}
-                    onBlur={e => { if (!errors.firstName) e.currentTarget.style.borderColor = "var(--reg-input-border)"; }}
-                  />
+                  <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: "var(--reg-label)" }}>Город</label>
+                  <div className="relative">
+                    <Icon name="MapPin" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 z-10" style={{ color: "var(--reg-icon)" }} />
+                    <input type="text" placeholder="Начните вводить город..."
+                      value={showCities ? citySearch : form.city}
+                      onFocus={() => { setShowCities(true); setCitySearch(""); }}
+                      onChange={e => { setCitySearch(e.target.value); setForm(f => ({ ...f, city: "" })); setErrors(er => ({ ...er, city: "" })); }}
+                      onBlur={() => setTimeout(() => setShowCities(false), 150)}
+                      className="w-full pl-9 pr-9 py-3 rounded-xl text-sm outline-none"
+                      style={{ background: "var(--reg-input-bg)", border: `1.5px solid ${errors.city ? "var(--reg-error)" : "var(--reg-input-border)"}`, color: "var(--reg-text-primary)" }}
+                      onFocusCapture={e => { if (!errors.city) e.currentTarget.style.borderColor = "var(--reg-accent)"; }}
+                    />
+                    <Icon name="ChevronDown" size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--reg-icon)" }} />
+                  </div>
+                  {errors.city && <p className="text-xs mt-1" style={{ color: "var(--reg-error)" }}>{errors.city}</p>}
+                  {showCities && filteredCities.length > 0 && (
+                    <div className="absolute z-50 left-0 right-0 mt-1.5 rounded-xl overflow-hidden shadow-2xl" style={{ background: "var(--reg-dropdown-bg)", border: "1px solid var(--reg-dropdown-border)", maxHeight: "200px", overflowY: "auto" }}>
+                      {filteredCities.map(city => (
+                        <button key={city} type="button"
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left"
+                          style={{ color: "var(--reg-text-secondary)" }}
+                          onMouseDown={() => { setForm(f => ({ ...f, city })); setCitySearch(""); setShowCities(false); setErrors(er => ({ ...er, city: "" })); }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "var(--reg-dropdown-hover)"; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+                        >
+                          <Icon name="MapPin" size={13} style={{ color: "var(--reg-accent)", flexShrink: 0 }} />{city}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                {errors.firstName && <p className="text-xs mt-1" style={{ color: "var(--reg-error)" }}>{errors.firstName}</p>}
-              </div>
 
-              {/* Фамилия */}
-              <div>
-                <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: "var(--reg-label)" }}>Фамилия</label>
-                <div className="relative">
-                  <Icon name="User" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--reg-icon)" }} />
-                  <input
-                    type="text"
-                    placeholder="Иванов"
-                    value={form.lastName}
-                    onChange={e => { setForm(f => ({ ...f, lastName: e.target.value })); setErrors(er => ({ ...er, lastName: "" })); }}
-                    className="w-full pl-9 pr-4 py-3 rounded-xl text-sm outline-none transition-all"
-                    style={{
-                      background: "var(--reg-input-bg)",
-                      border: `1.5px solid ${errors.lastName ? "var(--reg-error)" : "var(--reg-input-border)"}`,
-                      color: "var(--reg-text-primary)",
-                    }}
-                    onFocus={e => { if (!errors.lastName) e.currentTarget.style.borderColor = "var(--reg-accent)"; }}
-                    onBlur={e => { if (!errors.lastName) e.currentTarget.style.borderColor = "var(--reg-input-border)"; }}
-                  />
+                {/* Возраст */}
+                <div>
+                  <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: "var(--reg-label)" }}>Возраст</label>
+                  <div className="relative">
+                    <Icon name="Calendar" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--reg-icon)" }} />
+                    <input type="number" placeholder="Введите возраст" min={20} max={80} value={form.age}
+                      onChange={e => setField("age", e.target.value)}
+                      className="w-full pl-9 pr-4 py-3 rounded-xl text-sm outline-none"
+                      style={{ background: "var(--reg-input-bg)", border: `1.5px solid ${errors.age ? "var(--reg-error)" : "var(--reg-input-border)"}`, color: "var(--reg-text-primary)" }}
+                      onFocus={e => { if (!errors.age) e.currentTarget.style.borderColor = "var(--reg-accent)"; }}
+                      onBlur={e => { if (!errors.age) e.currentTarget.style.borderColor = "var(--reg-input-border)"; }}
+                    />
+                  </div>
+                  {errors.age && <p className="text-xs mt-1" style={{ color: "var(--reg-error)" }}>{errors.age}</p>}
                 </div>
-                {errors.lastName && <p className="text-xs mt-1" style={{ color: "var(--reg-error)" }}>{errors.lastName}</p>}
-              </div>
-            </div>
+              </>
+            )}
 
-            {/* Город */}
-            <div className="relative">
-              <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: "var(--reg-label)" }}>Город</label>
-              <div className="relative">
-                <Icon name="MapPin" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 z-10" style={{ color: "var(--reg-icon)" }} />
-                <input
-                  type="text"
-                  placeholder="Начните вводить город..."
-                  value={showCities ? citySearch : form.city}
-                  onFocus={() => { setShowCities(true); setCitySearch(""); }}
-                  onChange={e => { setCitySearch(e.target.value); setForm(f => ({ ...f, city: "" })); setErrors(er => ({ ...er, city: "" })); }}
-                  onBlur={() => setTimeout(() => setShowCities(false), 150)}
-                  className="w-full pl-9 pr-9 py-3 rounded-xl text-sm outline-none transition-all"
-                  style={{
-                    background: "var(--reg-input-bg)",
-                    border: `1.5px solid ${errors.city ? "var(--reg-error)" : "var(--reg-input-border)"}`,
-                    color: "var(--reg-text-primary)",
-                  }}
-                  onFocusCapture={e => { if (!errors.city) e.currentTarget.style.borderColor = "var(--reg-accent)"; }}
-                />
-                <Icon name="ChevronDown" size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--reg-icon)" }} />
-              </div>
-              {errors.city && <p className="text-xs mt-1" style={{ color: "var(--reg-error)" }}>{errors.city}</p>}
-
-              {showCities && (citySearch.length > 0 || true) && filteredCities.length > 0 && (
-                <div
-                  className="absolute z-50 left-0 right-0 mt-1.5 rounded-xl overflow-hidden shadow-2xl"
-                  style={{ background: "var(--reg-dropdown-bg)", border: "1px solid var(--reg-dropdown-border)", maxHeight: "200px", overflowY: "auto" }}
-                >
-                  {filteredCities.map(city => (
-                    <button
-                      key={city}
-                      type="button"
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors"
-                      style={{ color: "var(--reg-text-secondary)" }}
-                      onMouseDown={() => { setForm(f => ({ ...f, city })); setCitySearch(""); setShowCities(false); setErrors(er => ({ ...er, city: "" })); }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "var(--reg-dropdown-hover)"; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
-                    >
-                      <Icon name="MapPin" size={13} style={{ color: "var(--reg-accent)", flexShrink: 0 }} />
-                      {city}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Возраст */}
-            <div>
-              <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: "var(--reg-label)" }}>Возраст</label>
-              <div className="relative">
-                <Icon name="Calendar" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--reg-icon)" }} />
-                <input
-                  type="number"
-                  placeholder="Введите возраст"
-                  min={20} max={80}
-                  value={form.age}
-                  onChange={e => { setForm(f => ({ ...f, age: e.target.value })); setErrors(er => ({ ...er, age: "" })); }}
-                  className="w-full pl-9 pr-4 py-3 rounded-xl text-sm outline-none transition-all"
-                  style={{
-                    background: "var(--reg-input-bg)",
-                    border: `1.5px solid ${errors.age ? "var(--reg-error)" : "var(--reg-input-border)"}`,
-                    color: "var(--reg-text-primary)",
-                  }}
-                  onFocus={e => { if (!errors.age) e.currentTarget.style.borderColor = "var(--reg-accent)"; }}
-                  onBlur={e => { if (!errors.age) e.currentTarget.style.borderColor = "var(--reg-input-border)"; }}
-                />
-              </div>
-              {errors.age && <p className="text-xs mt-1" style={{ color: "var(--reg-error)" }}>{errors.age}</p>}
-            </div>
-
-            {/* Телефон */}
+            {/* Телефон — общее поле */}
             <div>
               <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: "var(--reg-label)" }}>Номер телефона</label>
               <div className="relative">
                 <Icon name="Phone" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--reg-icon)" }} />
-                <input
-                  type="tel"
-                  placeholder="+7 (___) ___-__-__"
-                  value={form.phone}
-                  onChange={e => {
-                    const formatted = formatPhone(e.target.value);
-                    setForm(f => ({ ...f, phone: formatted }));
-                    setErrors(er => ({ ...er, phone: "" }));
-                  }}
-                  className="w-full pl-9 pr-4 py-3 rounded-xl text-sm outline-none transition-all"
-                  style={{
-                    background: "var(--reg-input-bg)",
-                    border: `1.5px solid ${errors.phone ? "var(--reg-error)" : "var(--reg-input-border)"}`,
-                    color: "var(--reg-text-primary)",
-                  }}
+                <input type="tel" placeholder="+7 (___) ___-__-__" value={form.phone}
+                  onChange={e => setField("phone", formatPhone(e.target.value))}
+                  className="w-full pl-9 pr-4 py-3 rounded-xl text-sm outline-none"
+                  style={{ background: "var(--reg-input-bg)", border: `1.5px solid ${errors.phone ? "var(--reg-error)" : "var(--reg-input-border)"}`, color: "var(--reg-text-primary)" }}
                   onFocus={e => { if (!errors.phone) e.currentTarget.style.borderColor = "var(--reg-accent)"; }}
                   onBlur={e => { if (!errors.phone) e.currentTarget.style.borderColor = "var(--reg-input-border)"; }}
                 />
               </div>
-              {errors.phone
-                ? <p className="text-xs mt-1" style={{ color: "var(--reg-error)" }}>{errors.phone}</p>
-                : <p className="text-xs mt-1" style={{ color: "var(--reg-text-muted)" }}>Формат: +7 (XXX) XXX-XX-XX</p>
-              }
+              {errors.phone && <p className="text-xs mt-1" style={{ color: "var(--reg-error)" }}>{errors.phone}</p>}
+            </div>
+
+            {/* Пароль — общее поле */}
+            <div>
+              <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: "var(--reg-label)" }}>Пароль</label>
+              <div className="relative">
+                <Icon name="Lock" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--reg-icon)" }} />
+                <input
+                  type={form.showPassword ? "text" : "password"}
+                  placeholder={mode === "register" ? "Минимум 6 символов" : "Введите пароль"}
+                  value={form.password}
+                  onChange={e => setField("password", e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleSubmit()}
+                  className="w-full pl-9 pr-10 py-3 rounded-xl text-sm outline-none"
+                  style={{ background: "var(--reg-input-bg)", border: `1.5px solid ${errors.password ? "var(--reg-error)" : "var(--reg-input-border)"}`, color: "var(--reg-text-primary)" }}
+                  onFocus={e => { if (!errors.password) e.currentTarget.style.borderColor = "var(--reg-accent)"; }}
+                  onBlur={e => { if (!errors.password) e.currentTarget.style.borderColor = "var(--reg-input-border)"; }}
+                />
+                <button type="button"
+                  onClick={() => setForm(f => ({ ...f, showPassword: !f.showPassword }))}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2"
+                  style={{ color: "var(--reg-icon)" }}>
+                  <Icon name={form.showPassword ? "EyeOff" : "Eye"} size={15} />
+                </button>
+              </div>
+              {errors.password && <p className="text-xs mt-1" style={{ color: "var(--reg-error)" }}>{errors.password}</p>}
+              {mode === "register" && !errors.password && (
+                <p className="text-xs mt-1" style={{ color: "var(--reg-text-muted)" }}>Запомните пароль — он нужен для входа</p>
+              )}
             </div>
           </div>
 
@@ -400,8 +410,10 @@ export default function Register({ onRegister }: RegisterProps) {
           >
             <span className="relative z-10 flex items-center justify-center gap-2">
               {loading
-                ? <><Icon name="Loader2" size={16} className="text-white animate-spin" />Сохраняем данные...</>
-                : <><Icon name="ArrowRight" size={16} className="text-white" />Войти в Gruz off</>
+                ? <><Icon name="Loader2" size={16} className="text-white animate-spin" />{mode === "login" ? "Проверяем..." : "Сохраняем..."}</>
+                : mode === "login"
+                  ? <><Icon name="LogIn" size={16} className="text-white" />Войти в Gruz off</>
+                  : <><Icon name="UserPlus" size={16} className="text-white" />Зарегистрироваться</>
               }
             </span>
           </button>
