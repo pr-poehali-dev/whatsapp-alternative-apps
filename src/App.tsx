@@ -24,6 +24,7 @@ export default function App() {
   const [user, setUser] = useState<UserData | null>(null);
   const [userPhone, setUserPhone] = useState<string>("");
   const [activeTab, setActiveTab] = useState<Tab>("orders");
+  const [pendingChatMessage, setPendingChatMessage] = useState<string>("");
 
   if (!user) {
     return (
@@ -72,10 +73,22 @@ export default function App() {
       {/* Контент */}
       <main className="flex-1 overflow-hidden">
         <div className={`h-full overflow-hidden ${activeTab === "orders" ? "block" : "hidden"}`}>
-          <Orders user={user} isAdmin={isAdmin} />
+          <Orders
+            user={user}
+            isAdmin={isAdmin}
+            onReply={(msg) => {
+              setPendingChatMessage(msg);
+              setActiveTab("chats");
+            }}
+          />
         </div>
         <div className={`h-full ${activeTab === "chats" ? "block" : "hidden"}`}>
-          <Chats user={user} />
+          <Chats
+            user={user}
+            isAdmin={isAdmin}
+            openOrderMessage={pendingChatMessage}
+            onOpenOrderMessageUsed={() => setPendingChatMessage("")}
+          />
         </div>
         <div className={`h-full overflow-hidden ${activeTab === "contacts" ? "block" : "hidden"}`}>
           <Contacts />

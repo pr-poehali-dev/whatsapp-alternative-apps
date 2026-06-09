@@ -22,6 +22,7 @@ interface Order {
 interface OrdersProps {
   user: UserData;
   isAdmin: boolean;
+  onReply: (message: string) => void;
 }
 
 const DATE_OPTIONS = ["Сегодня", "Завтра", "Ближайшее время", "На этой неделе", "Указать дату"];
@@ -36,7 +37,7 @@ function timeAgo(dateStr: string) {
   return `${Math.floor(h / 24)} д назад`;
 }
 
-export default function Orders({ user, isAdmin }: OrdersProps) {
+export default function Orders({ user, isAdmin, onReply }: OrdersProps) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -507,7 +508,11 @@ export default function Orders({ user, isAdmin }: OrdersProps) {
               <button
                 className="w-full py-3.5 rounded-xl font-bold text-white text-sm"
                 style={{ background: "var(--reg-btn)" }}
-                onClick={() => setActiveOrder(null)}
+                onClick={() => {
+                  const msg = `Откликаюсь на заявку #${activeOrder.id} · ${activeOrder.city}${activeOrder.workDate ? ` · ${activeOrder.workDate}` : ""}${activeOrder.workTime ? `, ${activeOrder.workTime}` : ""}: ${activeOrder.description.slice(0, 80)}${activeOrder.description.length > 80 ? "..." : ""}`;
+                  setActiveOrder(null);
+                  onReply(msg);
+                }}
               >
                 <span className="flex items-center justify-center gap-2">
                   <Icon name="MessageCircle" size={16} className="text-white" />

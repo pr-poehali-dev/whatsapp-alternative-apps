@@ -1,9 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Icon from "@/components/ui/icon";
 import { UserData } from "./Register";
 
+const ADMIN_CHAT: Chat = {
+  id: 0,
+  name: "👑 Администратор (Gruz off)",
+  lastMessage: "Напишите по заявке",
+  time: "",
+  unread: 0,
+  online: true,
+  avatar: "АД",
+  messages: [],
+};
+
 interface ChatsProps {
   user: UserData;
+  isAdmin: boolean;
+  openOrderMessage?: string;
+  onOpenOrderMessageUsed?: () => void;
 }
 
 interface Message {
@@ -71,13 +85,28 @@ const MOCK_CHATS: Chat[] = [
   },
 ];
 
-export default function Chats({ user }: ChatsProps) {
+export default function Chats({ user, isAdmin, openOrderMessage, onOpenOrderMessageUsed }: ChatsProps) {
+  // Для обычного пользователя первый чат всегда — чат с админом
+  const initialChats = isAdmin ? MOCK_CHATS : [ADMIN_CHAT, ...MOCK_CHATS];
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
   const [messageText, setMessageText] = useState("");
-  const [chats, setChats] = useState<Chat[]>(MOCK_CHATS);
+  const [chats, setChats] = useState<Chat[]>(initialChats);
   const [search, setSearch] = useState("");
 
-  const filtered = chats.filter(c =>
+  // Автооткрытие чата с админом при отклике на заявку
+  useEffect(() => {
+    if (openOrderMessage) {
+      const adminChat = chats.find(c => c.id === 0) || ADMIN_CHAT;
+      setActiveChat(adminChat);
+      setMessageText(openOrderMessage);
+      onOpenOrderMessageUsed?.();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openOrderMessage]);
+
+  // Обычный пользователь видит только чат с администратором
+  const visibleChats = isAdmin ? chats : chats.filter(c => c.id === 0);
+  const filtered = visibleChats.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase())
   );
 
