@@ -36,9 +36,16 @@ const CITIES = [
   "Барнаул", "Красноярск", "Иркутск", "Улан-Удэ", "Чита",
   "Якутск", "Хабаровск", "Владивосток", "Благовещенск", "Южно-Сахалинск",
   // Северо-Запад
-  "Мурманск", "Архангельск", "Петрозаводск", "Вологда", "Псков", "Великий Новгород",
-  "Калининград", "Сыктывкар", "Нарьян-Мар",
+  "Мурманск", "Архангельск", "Петрозаводск", "Вологда", "Псков",
+  "Великий Новгород", "Калининград", "Сыктывкар", "Нарьян-Мар",
 ].sort();
+
+const FIELD_META = [
+  { key: "firstName", label: "Имя", placeholder: "Иван", icon: "User", type: "text" },
+  { key: "lastName",  label: "Фамилия", placeholder: "Иванов", icon: "User", type: "text" },
+  { key: "city",      label: "Город", placeholder: "Начните вводить...", icon: "MapPin", type: "city" },
+  { key: "age",       label: "Возраст", placeholder: "От 20 лет", icon: "Calendar", type: "number" },
+] as const;
 
 export default function Register({ onRegister }: RegisterProps) {
   const [form, setForm] = useState({ firstName: "", lastName: "", city: "", age: "" });
@@ -47,14 +54,14 @@ export default function Register({ onRegister }: RegisterProps) {
   const [showCities, setShowCities] = useState(false);
 
   const filteredCities = CITIES.filter(c =>
-    c.toLowerCase().includes(citySearch.toLowerCase())
-  );
+    c.toLowerCase().includes((citySearch || form.city).toLowerCase())
+  ).slice(0, 8);
 
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.firstName.trim()) e.firstName = "Введите имя";
     if (!form.lastName.trim()) e.lastName = "Введите фамилию";
-    if (!form.city) e.city = "Выберите город";
+    if (!form.city) e.city = "Выберите город из списка";
     if (!form.age) e.age = "Введите возраст";
     else if (Number(form.age) < 20) e.age = "Минимальный возраст — 20 лет";
     else if (Number(form.age) > 80) e.age = "Введите корректный возраст";
@@ -64,138 +71,236 @@ export default function Register({ onRegister }: RegisterProps) {
 
   const handleSubmit = () => {
     if (!validate()) return;
-    onRegister({
-      firstName: form.firstName.trim(),
-      lastName: form.lastName.trim(),
-      city: form.city,
-      age: Number(form.age),
-      role: "user",
-    });
+    onRegister({ firstName: form.firstName.trim(), lastName: form.lastName.trim(), city: form.city, age: Number(form.age), role: "user" });
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 relative overflow-hidden">
-      {/* Фоновые блобы */}
-      <div className="absolute top-[-10%] left-[-10%] w-72 h-72 rounded-full bg-violet-600/20 blur-3xl pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-80 h-80 rounded-full bg-cyan-500/15 blur-3xl pointer-events-none" />
-      <div className="absolute top-[40%] right-[5%] w-40 h-40 rounded-full bg-purple-500/10 blur-2xl pointer-events-none" />
+    <div className="min-h-screen w-full flex items-stretch relative overflow-hidden" style={{ background: "var(--reg-bg)" }}>
 
-      {/* Логотип */}
-      <div className="mb-8 text-center animate-fade-in">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl btn-gradient mb-4 animate-pulse-glow relative z-10">
-          <Icon name="MessageCircle" size={32} className="text-white relative z-10" />
+      {/* ── Левая декоративная панель (только desktop) ── */}
+      <div className="hidden lg:flex flex-col justify-between w-[46%] relative overflow-hidden p-12" style={{ background: "var(--reg-panel)" }}>
+        {/* Декор-круги */}
+        <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full opacity-10" style={{ background: "var(--reg-accent)" }} />
+        <div className="absolute bottom-10 right-[-60px] w-96 h-96 rounded-full opacity-[0.07]" style={{ background: "var(--reg-accent2)" }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full opacity-[0.06]" style={{ background: "var(--reg-accent)" }} />
+
+        {/* Логотип */}
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-16">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: "var(--reg-accent)" }}>
+              <Icon name="Truck" size={22} className="text-white" />
+            </div>
+            <div>
+              <div className="font-display font-black text-xl tracking-tight" style={{ color: "var(--reg-text-primary)" }}>Gruz<span style={{ color: "var(--reg-accent)" }}> off</span></div>
+              <div className="text-xs font-medium" style={{ color: "var(--reg-text-muted)" }}>Корпоративный мессенджер</div>
+            </div>
+          </div>
+
+          <h2 className="font-display font-black text-4xl leading-tight mb-5" style={{ color: "var(--reg-text-primary)" }}>
+            Работайте<br />
+            <span style={{ color: "var(--reg-accent)" }}>в одном</span><br />
+            пространстве
+          </h2>
+          <p className="text-base leading-relaxed" style={{ color: "var(--reg-text-muted)" }}>
+            Быстрые чаты, группы по бригадам,<br />
+            уведомления и контакты коллег —<br />
+            всё в одном приложении.
+          </p>
         </div>
-        <h1 className="font-display text-3xl font-black gradient-text tracking-tight">WorkChat</h1>
-        <p className="text-muted-foreground text-sm mt-1">Корпоративный мессенджер</p>
+
+        {/* Плашки-фичи */}
+        <div className="relative z-10 space-y-3">
+          {[
+            { icon: "MessageCircle", text: "Личные и групповые чаты" },
+            { icon: "Users", text: "Каталог контактов компании" },
+            { icon: "Bell", text: "Мгновенные уведомления" },
+          ].map((f, i) => (
+            <div key={i} className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: "var(--reg-feature-bg)" }}>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "var(--reg-accent-soft)" }}>
+                <Icon name={f.icon} size={15} style={{ color: "var(--reg-accent)" }} />
+              </div>
+              <span className="text-sm font-medium" style={{ color: "var(--reg-text-secondary)" }}>{f.text}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Карточка формы */}
-      <div className="w-full max-w-md glass-card rounded-2xl p-6 sm:p-8 relative animate-fade-in delay-100">
-        <div className="animate-fade-in">
-            <h2 className="text-xl font-bold mb-1">Регистрация</h2>
-            <p className="text-muted-foreground text-sm mb-6">Заполните данные для входа</p>
+      {/* ── Правая панель — форма ── */}
+      <div className="flex-1 flex flex-col items-center justify-center px-5 py-10 sm:px-10 relative z-10">
 
-            <div className="space-y-4">
+        {/* Логотип (только мобайл) */}
+        <div className="flex lg:hidden items-center gap-2.5 mb-8 animate-fade-in">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "var(--reg-accent)" }}>
+            <Icon name="Truck" size={19} className="text-white" />
+          </div>
+          <div>
+            <div className="font-display font-black text-lg tracking-tight" style={{ color: "var(--reg-text-primary)" }}>
+              Gruz<span style={{ color: "var(--reg-accent)" }}> off</span>
+            </div>
+            <div className="text-[11px]" style={{ color: "var(--reg-text-muted)" }}>Корпоративный мессенджер</div>
+          </div>
+        </div>
+
+        {/* Карточка */}
+        <div
+          className="w-full max-w-[420px] rounded-2xl p-7 sm:p-9 animate-fade-in delay-100"
+          style={{ background: "var(--reg-card)", border: "1px solid var(--reg-card-border)", boxShadow: "0 24px 60px rgba(0,0,0,0.25)" }}
+        >
+          <div className="mb-7">
+            <h1 className="font-display font-black text-2xl sm:text-3xl mb-1.5" style={{ color: "var(--reg-text-primary)" }}>
+              Регистрация
+            </h1>
+            <p className="text-sm" style={{ color: "var(--reg-text-muted)" }}>
+              Заполните данные, чтобы войти в систему
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {/* Имя + Фамилия в ряд на sm+ */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Имя */}
               <div>
-                <label className="text-sm font-medium mb-1.5 block text-foreground/80">Имя</label>
+                <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: "var(--reg-label)" }}>Имя</label>
                 <div className="relative">
-                  <Icon name="User" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Icon name="User" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--reg-icon)" }} />
                   <input
                     type="text"
                     placeholder="Иван"
                     value={form.firstName}
                     onChange={e => { setForm(f => ({ ...f, firstName: e.target.value })); setErrors(er => ({ ...er, firstName: "" })); }}
-                    className={`input-glow w-full bg-input border rounded-xl pl-9 pr-4 py-3 text-sm outline-none transition-all placeholder:text-muted-foreground/50 ${errors.firstName ? "border-destructive" : "border-border focus:border-primary/60"}`}
+                    className="w-full pl-9 pr-4 py-3 rounded-xl text-sm outline-none transition-all"
+                    style={{
+                      background: "var(--reg-input-bg)",
+                      border: `1.5px solid ${errors.firstName ? "var(--reg-error)" : "var(--reg-input-border)"}`,
+                      color: "var(--reg-text-primary)",
+                    }}
+                    onFocus={e => { if (!errors.firstName) e.currentTarget.style.borderColor = "var(--reg-accent)"; }}
+                    onBlur={e => { if (!errors.firstName) e.currentTarget.style.borderColor = "var(--reg-input-border)"; }}
                   />
                 </div>
-                {errors.firstName && <p className="text-destructive text-xs mt-1">{errors.firstName}</p>}
+                {errors.firstName && <p className="text-xs mt-1" style={{ color: "var(--reg-error)" }}>{errors.firstName}</p>}
               </div>
 
               {/* Фамилия */}
               <div>
-                <label className="text-sm font-medium mb-1.5 block text-foreground/80">Фамилия</label>
+                <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: "var(--reg-label)" }}>Фамилия</label>
                 <div className="relative">
-                  <Icon name="User" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Icon name="User" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--reg-icon)" }} />
                   <input
                     type="text"
                     placeholder="Иванов"
                     value={form.lastName}
                     onChange={e => { setForm(f => ({ ...f, lastName: e.target.value })); setErrors(er => ({ ...er, lastName: "" })); }}
-                    className={`input-glow w-full bg-input border rounded-xl pl-9 pr-4 py-3 text-sm outline-none transition-all placeholder:text-muted-foreground/50 ${errors.lastName ? "border-destructive" : "border-border focus:border-primary/60"}`}
+                    className="w-full pl-9 pr-4 py-3 rounded-xl text-sm outline-none transition-all"
+                    style={{
+                      background: "var(--reg-input-bg)",
+                      border: `1.5px solid ${errors.lastName ? "var(--reg-error)" : "var(--reg-input-border)"}`,
+                      color: "var(--reg-text-primary)",
+                    }}
+                    onFocus={e => { if (!errors.lastName) e.currentTarget.style.borderColor = "var(--reg-accent)"; }}
+                    onBlur={e => { if (!errors.lastName) e.currentTarget.style.borderColor = "var(--reg-input-border)"; }}
                   />
                 </div>
-                {errors.lastName && <p className="text-destructive text-xs mt-1">{errors.lastName}</p>}
-              </div>
-
-              {/* Город */}
-              <div className="relative">
-                <label className="text-sm font-medium mb-1.5 block text-foreground/80">Город</label>
-                <div className="relative">
-                  <Icon name="MapPin" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="text"
-                    placeholder="Начните вводить город..."
-                    value={citySearch || form.city}
-                    onFocus={() => { setShowCities(true); if (form.city) setCitySearch(""); }}
-                    onChange={e => { setCitySearch(e.target.value); setForm(f => ({ ...f, city: "" })); setErrors(er => ({ ...er, city: "" })); }}
-                    className={`input-glow w-full bg-input border rounded-xl pl-9 pr-4 py-3 text-sm outline-none transition-all placeholder:text-muted-foreground/50 ${errors.city ? "border-destructive" : "border-border focus:border-primary/60"}`}
-                  />
-                  <Icon name="ChevronDown" size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                </div>
-                {errors.city && <p className="text-destructive text-xs mt-1">{errors.city}</p>}
-                {showCities && filteredCities.length > 0 && (
-                  <div className="absolute z-50 top-full left-0 right-0 mt-1 glass border border-border rounded-xl overflow-hidden shadow-2xl max-h-48 overflow-y-auto">
-                    {filteredCities.slice(0, 8).map(city => (
-                      <button
-                        key={city}
-                        type="button"
-                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-primary/20 transition-colors"
-                        onMouseDown={() => {
-                          setForm(f => ({ ...f, city }));
-                          setCitySearch("");
-                          setShowCities(false);
-                        }}
-                      >
-                        {city}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Возраст */}
-              <div>
-                <label className="text-sm font-medium mb-1.5 block text-foreground/80">Возраст</label>
-                <div className="relative">
-                  <Icon name="Calendar" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="number"
-                    placeholder="От 20 лет"
-                    min={20}
-                    max={80}
-                    value={form.age}
-                    onChange={e => { setForm(f => ({ ...f, age: e.target.value })); setErrors(er => ({ ...er, age: "" })); }}
-                    className={`input-glow w-full bg-input border rounded-xl pl-9 pr-4 py-3 text-sm outline-none transition-all placeholder:text-muted-foreground/50 ${errors.age ? "border-destructive" : "border-border focus:border-primary/60"}`}
-                  />
-                </div>
-                {errors.age && <p className="text-destructive text-xs mt-1">{errors.age}</p>}
-                <p className="text-muted-foreground/60 text-xs mt-1">Минимальный возраст для регистрации — 20 лет</p>
+                {errors.lastName && <p className="text-xs mt-1" style={{ color: "var(--reg-error)" }}>{errors.lastName}</p>}
               </div>
             </div>
 
-            <button
-              onClick={handleSubmit}
-              className="btn-gradient w-full mt-6 py-3.5 rounded-xl font-semibold text-white text-sm relative z-10"
-            >
-              Войти в WorkChat 🚀
-            </button>
-          </div>
-      </div>
+            {/* Город */}
+            <div className="relative">
+              <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: "var(--reg-label)" }}>Город</label>
+              <div className="relative">
+                <Icon name="MapPin" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 z-10" style={{ color: "var(--reg-icon)" }} />
+                <input
+                  type="text"
+                  placeholder="Начните вводить город..."
+                  value={showCities ? citySearch : form.city}
+                  onFocus={() => { setShowCities(true); setCitySearch(""); }}
+                  onChange={e => { setCitySearch(e.target.value); setForm(f => ({ ...f, city: "" })); setErrors(er => ({ ...er, city: "" })); }}
+                  onBlur={() => setTimeout(() => setShowCities(false), 150)}
+                  className="w-full pl-9 pr-9 py-3 rounded-xl text-sm outline-none transition-all"
+                  style={{
+                    background: "var(--reg-input-bg)",
+                    border: `1.5px solid ${errors.city ? "var(--reg-error)" : "var(--reg-input-border)"}`,
+                    color: "var(--reg-text-primary)",
+                  }}
+                  onFocusCapture={e => { if (!errors.city) e.currentTarget.style.borderColor = "var(--reg-accent)"; }}
+                />
+                <Icon name="ChevronDown" size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--reg-icon)" }} />
+              </div>
+              {errors.city && <p className="text-xs mt-1" style={{ color: "var(--reg-error)" }}>{errors.city}</p>}
 
-      <p className="text-muted-foreground/40 text-xs mt-6 text-center">
-        Нажимая «Войти», вы соглашаетесь с правилами использования
-      </p>
+              {showCities && (citySearch.length > 0 || true) && filteredCities.length > 0 && (
+                <div
+                  className="absolute z-50 left-0 right-0 mt-1.5 rounded-xl overflow-hidden shadow-2xl"
+                  style={{ background: "var(--reg-dropdown-bg)", border: "1px solid var(--reg-dropdown-border)", maxHeight: "200px", overflowY: "auto" }}
+                >
+                  {filteredCities.map(city => (
+                    <button
+                      key={city}
+                      type="button"
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition-colors"
+                      style={{ color: "var(--reg-text-secondary)" }}
+                      onMouseDown={() => { setForm(f => ({ ...f, city })); setCitySearch(""); setShowCities(false); setErrors(er => ({ ...er, city: "" })); }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "var(--reg-dropdown-hover)"; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "transparent"; }}
+                    >
+                      <Icon name="MapPin" size={13} style={{ color: "var(--reg-accent)", flexShrink: 0 }} />
+                      {city}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Возраст */}
+            <div>
+              <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: "var(--reg-label)" }}>Возраст</label>
+              <div className="relative">
+                <Icon name="Calendar" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--reg-icon)" }} />
+                <input
+                  type="number"
+                  placeholder="Не менее 20 лет"
+                  min={20} max={80}
+                  value={form.age}
+                  onChange={e => { setForm(f => ({ ...f, age: e.target.value })); setErrors(er => ({ ...er, age: "" })); }}
+                  className="w-full pl-9 pr-4 py-3 rounded-xl text-sm outline-none transition-all"
+                  style={{
+                    background: "var(--reg-input-bg)",
+                    border: `1.5px solid ${errors.age ? "var(--reg-error)" : "var(--reg-input-border)"}`,
+                    color: "var(--reg-text-primary)",
+                  }}
+                  onFocus={e => { if (!errors.age) e.currentTarget.style.borderColor = "var(--reg-accent)"; }}
+                  onBlur={e => { if (!errors.age) e.currentTarget.style.borderColor = "var(--reg-input-border)"; }}
+                />
+              </div>
+              {errors.age
+                ? <p className="text-xs mt-1" style={{ color: "var(--reg-error)" }}>{errors.age}</p>
+                : <p className="text-xs mt-1" style={{ color: "var(--reg-text-muted)" }}>Принимаем сотрудников от 20 лет</p>
+              }
+            </div>
+          </div>
+
+          {/* Кнопка */}
+          <button
+            onClick={handleSubmit}
+            className="w-full mt-7 py-3.5 rounded-xl font-bold text-sm tracking-wide transition-all duration-200 relative overflow-hidden"
+            style={{ background: "var(--reg-btn)", color: "#fff" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = "0.9"; (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = "1"; (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)"; }}
+            onMouseDown={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.98)"; }}
+            onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)"; }}
+          >
+            <span className="relative z-10 flex items-center justify-center gap-2">
+              <Icon name="ArrowRight" size={16} className="text-white" />
+              Войти в Gruz off
+            </span>
+          </button>
+
+          <p className="text-center text-xs mt-5" style={{ color: "var(--reg-text-muted)" }}>
+            Нажимая кнопку, вы принимаете правила использования сервиса
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

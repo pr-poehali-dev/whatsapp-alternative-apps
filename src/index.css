@@ -34,6 +34,28 @@
 
     --radius: 1rem;
 
+    /* ── Экран регистрации Gruz off ── */
+    --reg-bg: #0f1923;
+    --reg-panel: #111d2b;
+    --reg-card: #16202e;
+    --reg-card-border: rgba(255, 255, 255, 0.07);
+    --reg-accent: #e8772e;
+    --reg-accent2: #2a6dd9;
+    --reg-accent-soft: rgba(232, 119, 46, 0.12);
+    --reg-btn: linear-gradient(135deg, #e8772e 0%, #d45f14 100%);
+    --reg-text-primary: #edf2f7;
+    --reg-text-secondary: #c5cfe0;
+    --reg-text-muted: #6b809a;
+    --reg-label: #7e95b0;
+    --reg-icon: #5a7290;
+    --reg-input-bg: #0d1720;
+    --reg-input-border: rgba(255, 255, 255, 0.09);
+    --reg-error: #f06b6b;
+    --reg-feature-bg: rgba(255, 255, 255, 0.04);
+    --reg-dropdown-bg: #192534;
+    --reg-dropdown-border: rgba(255, 255, 255, 0.1);
+    --reg-dropdown-hover: rgba(232, 119, 46, 0.12);
+
     /* Градиенты */
     --grad-primary: linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%);
     --grad-card: linear-gradient(

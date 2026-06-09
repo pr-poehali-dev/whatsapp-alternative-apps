@@ -28,10 +28,12 @@ export default function App() {
       {/* Шапка */}
       <header className="glass border-b border-border px-4 py-3 flex items-center justify-between flex-shrink-0 z-10">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl btn-gradient flex items-center justify-center relative z-10">
-            <Icon name="MessageCircle" size={16} className="text-white relative z-10" />
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center relative z-10" style={{ background: "var(--reg-btn)" }}>
+            <Icon name="Truck" size={16} className="text-white relative z-10" />
           </div>
-          <span className="font-display font-black text-lg gradient-text">WorkChat</span>
+          <span className="font-display font-black text-lg" style={{ color: "var(--reg-text-primary)" }}>
+            Gruz<span style={{ color: "var(--reg-accent)" }}> off</span>
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <button className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors relative">
