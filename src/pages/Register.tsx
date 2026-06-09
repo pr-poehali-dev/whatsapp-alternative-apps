@@ -47,17 +47,39 @@ const FIELD_META = [
   { key: "age",       label: "Возраст", placeholder: "От 20 лет", icon: "Calendar", type: "number" },
 ] as const;
 
+const REGISTER_URL = "https://functions.poehali.dev/91618013-f9f0-4eae-bfb5-15eda3e30c7a";
+
+function formatPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return "";
+  let d = digits;
+  if (d.startsWith("8")) d = "7" + d.slice(1);
+  if (!d.startsWith("7")) d = "7" + d;
+  d = d.slice(0, 11);
+  let out = "+7";
+  if (d.length > 1) out += " (" + d.slice(1, 4);
+  if (d.length >= 4) out += ") " + d.slice(4, 7);
+  if (d.length >= 7) out += "-" + d.slice(7, 9);
+  if (d.length >= 9) out += "-" + d.slice(9, 11);
+  return out;
+}
+
+function toE164(formatted: string): string {
+  const digits = formatted.replace(/\D/g, "");
+  return "+" + (digits.startsWith("7") ? digits : "7" + digits);
+}
+
 export default function Register({ onRegister }: RegisterProps) {
-  const [form, setForm] = useState({ firstName: "", lastName: "", city: "", age: "" });
+  const [form, setForm] = useState({ firstName: "", lastName: "", city: "", age: "", phone: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [citySearch, setCitySearch] = useState("");
   const [showCities, setShowCities] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const filteredCities = CITIES.filter(c =>
     c.toLowerCase().includes((citySearch || form.city).toLowerCase())
   ).slice(0, 8);
-
-  const [blocked, setBlocked] = useState(false);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -65,17 +87,42 @@ export default function Register({ onRegister }: RegisterProps) {
     if (!form.lastName.trim()) e.lastName = "Введите фамилию";
     if (!form.city) e.city = "Выберите город из списка";
     if (!form.age) e.age = "Введите возраст";
-    else if (Number(form.age) < 20) {
-      setBlocked(true);
-      return false;
-    } else if (Number(form.age) > 80) e.age = "Введите корректный возраст";
+    else if (Number(form.age) < 20) { setBlocked(true); return false; }
+    else if (Number(form.age) > 80) e.age = "Введите корректный возраст";
+    const phoneDigits = form.phone.replace(/\D/g, "");
+    if (!form.phone) e.phone = "Введите номер телефона";
+    else if (phoneDigits.length < 11) e.phone = "Введите полный номер";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
-    onRegister({ firstName: form.firstName.trim(), lastName: form.lastName.trim(), city: form.city, age: Number(form.age), role: "user" });
+    setLoading(true);
+    try {
+      const res = await fetch(REGISTER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: form.firstName.trim(),
+          lastName: form.lastName.trim(),
+          city: form.city,
+          age: Number(form.age),
+          phone: toE164(form.phone),
+        }),
+      });
+      const data = await res.json();
+      const parsed = typeof data === "string" ? JSON.parse(data) : data;
+      if (parsed.ok) {
+        onRegister({ firstName: parsed.user.firstName, lastName: parsed.user.lastName, city: parsed.user.city, age: parsed.user.age, role: "user" });
+      } else if (parsed.errors) {
+        setErrors(parsed.errors);
+      }
+    } catch {
+      setErrors({ phone: "Ошибка соединения, попробуйте ещё раз" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (blocked) {
@@ -308,21 +355,54 @@ export default function Register({ onRegister }: RegisterProps) {
                 : <p className="text-xs mt-1" style={{ color: "var(--reg-text-muted)" }}>Принимаем сотрудников от 20 лет</p>
               }
             </div>
+
+            {/* Телефон */}
+            <div>
+              <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wide" style={{ color: "var(--reg-label)" }}>Номер телефона</label>
+              <div className="relative">
+                <Icon name="Phone" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--reg-icon)" }} />
+                <input
+                  type="tel"
+                  placeholder="+7 (___) ___-__-__"
+                  value={form.phone}
+                  onChange={e => {
+                    const formatted = formatPhone(e.target.value);
+                    setForm(f => ({ ...f, phone: formatted }));
+                    setErrors(er => ({ ...er, phone: "" }));
+                  }}
+                  className="w-full pl-9 pr-4 py-3 rounded-xl text-sm outline-none transition-all"
+                  style={{
+                    background: "var(--reg-input-bg)",
+                    border: `1.5px solid ${errors.phone ? "var(--reg-error)" : "var(--reg-input-border)"}`,
+                    color: "var(--reg-text-primary)",
+                  }}
+                  onFocus={e => { if (!errors.phone) e.currentTarget.style.borderColor = "var(--reg-accent)"; }}
+                  onBlur={e => { if (!errors.phone) e.currentTarget.style.borderColor = "var(--reg-input-border)"; }}
+                />
+              </div>
+              {errors.phone
+                ? <p className="text-xs mt-1" style={{ color: "var(--reg-error)" }}>{errors.phone}</p>
+                : <p className="text-xs mt-1" style={{ color: "var(--reg-text-muted)" }}>Формат: +7 (XXX) XXX-XX-XX</p>
+              }
+            </div>
           </div>
 
           {/* Кнопка */}
           <button
             onClick={handleSubmit}
+            disabled={loading}
             className="w-full mt-7 py-3.5 rounded-xl font-bold text-sm tracking-wide transition-all duration-200 relative overflow-hidden"
-            style={{ background: "var(--reg-btn)", color: "#fff" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.opacity = "0.9"; (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.opacity = "1"; (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)"; }}
-            onMouseDown={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.98)"; }}
-            onMouseUp={e => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)"; }}
+            style={{ background: "var(--reg-btn)", color: "#fff", opacity: loading ? 0.7 : 1 }}
+            onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.opacity = "0.9"; }}
+            onMouseLeave={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.opacity = "1"; }}
+            onMouseDown={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.transform = "scale(0.98)"; }}
+            onMouseUp={e => { if (!loading) (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
           >
             <span className="relative z-10 flex items-center justify-center gap-2">
-              <Icon name="ArrowRight" size={16} className="text-white" />
-              Войти в Gruz off
+              {loading
+                ? <><Icon name="Loader2" size={16} className="text-white animate-spin" />Сохраняем данные...</>
+                : <><Icon name="ArrowRight" size={16} className="text-white" />Войти в Gruz off</>
+              }
             </span>
           </button>
 
