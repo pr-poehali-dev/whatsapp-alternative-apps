@@ -1,0 +1,39 @@
+{
+  "tests": [
+    {
+      "name": "Создание заявки",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "city": "Ялта",
+        "address": "Парковый проезд 9а",
+        "workersCount": 2,
+        "workDate": "Сегодня",
+        "workTime": "09:00",
+        "description": "Фасовать мешки с песком, переносить по участку",
+        "rate": 500,
+        "minHours": 2,
+        "contactName": "Павленко"
+      },
+      "expectedStatus": 200,
+      "expectedBody": { "ok": true },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Список заявок по городу",
+      "method": "GET",
+      "path": "/?city=Ялта",
+      "expectedStatus": 200,
+      "expectedBody": { "ok": true },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Все заявки",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": { "ok": true },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

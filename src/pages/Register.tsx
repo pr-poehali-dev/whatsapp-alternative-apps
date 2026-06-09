@@ -2,7 +2,7 @@ import { useState } from "react";
 import Icon from "@/components/ui/icon";
 
 interface RegisterProps {
-  onRegister: (user: UserData) => void;
+  onRegister: (user: UserData, phone: string) => void;
 }
 
 export interface UserData {
@@ -114,7 +114,10 @@ export default function Register({ onRegister }: RegisterProps) {
       const data = await res.json();
       const parsed = typeof data === "string" ? JSON.parse(data) : data;
       if (parsed.ok) {
-        onRegister({ firstName: parsed.user.firstName, lastName: parsed.user.lastName, city: parsed.user.city, age: parsed.user.age, role: "user" });
+        onRegister(
+          { firstName: parsed.user.firstName, lastName: parsed.user.lastName, city: parsed.user.city, age: parsed.user.age, role: "user" },
+          parsed.user.phone
+        );
       } else if (parsed.errors) {
         setErrors(parsed.errors);
       }
