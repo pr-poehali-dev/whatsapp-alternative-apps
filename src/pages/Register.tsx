@@ -57,14 +57,18 @@ export default function Register({ onRegister }: RegisterProps) {
     c.toLowerCase().includes((citySearch || form.city).toLowerCase())
   ).slice(0, 8);
 
+  const [blocked, setBlocked] = useState(false);
+
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.firstName.trim()) e.firstName = "Введите имя";
     if (!form.lastName.trim()) e.lastName = "Введите фамилию";
     if (!form.city) e.city = "Выберите город из списка";
     if (!form.age) e.age = "Введите возраст";
-    else if (Number(form.age) < 20) e.age = "Минимальный возраст — 20 лет";
-    else if (Number(form.age) > 80) e.age = "Введите корректный возраст";
+    else if (Number(form.age) < 20) {
+      setBlocked(true);
+      return false;
+    } else if (Number(form.age) > 80) e.age = "Введите корректный возраст";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -73,6 +77,34 @@ export default function Register({ onRegister }: RegisterProps) {
     if (!validate()) return;
     onRegister({ firstName: form.firstName.trim(), lastName: form.lastName.trim(), city: form.city, age: Number(form.age), role: "user" });
   };
+
+  if (blocked) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center px-5" style={{ background: "var(--reg-bg)" }}>
+        <div className="w-full max-w-sm text-center animate-scale-in">
+          <div className="w-20 h-20 rounded-3xl mx-auto mb-6 flex items-center justify-center" style={{ background: "rgba(240,107,107,0.12)", border: "2px solid rgba(240,107,107,0.3)" }}>
+            <Icon name="ShieldX" size={36} style={{ color: "var(--reg-error)" }} />
+          </div>
+          <h2 className="font-display font-black text-2xl mb-3" style={{ color: "var(--reg-text-primary)" }}>
+            Доступ закрыт
+          </h2>
+          <p className="text-base mb-2" style={{ color: "var(--reg-text-secondary)" }}>
+            Регистрация доступна только для сотрудников <strong style={{ color: "var(--reg-text-primary)" }}>от 20 лет.</strong>
+          </p>
+          <p className="text-sm mb-8" style={{ color: "var(--reg-text-muted)" }}>
+            Если вы считаете, что произошла ошибка — обратитесь к руководителю.
+          </p>
+          <button
+            onClick={() => { setBlocked(false); setForm(f => ({ ...f, age: "" })); }}
+            className="px-8 py-3 rounded-xl font-semibold text-sm transition-all"
+            style={{ background: "var(--reg-btn)", color: "#fff" }}
+          >
+            ← Вернуться назад
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full flex items-stretch relative overflow-hidden" style={{ background: "var(--reg-bg)" }}>
@@ -92,19 +124,17 @@ export default function Register({ onRegister }: RegisterProps) {
             </div>
             <div>
               <div className="font-display font-black text-xl tracking-tight" style={{ color: "var(--reg-text-primary)" }}>Gruz<span style={{ color: "var(--reg-accent)" }}> off</span></div>
-              <div className="text-xs font-medium" style={{ color: "var(--reg-text-muted)" }}>Корпоративный мессенджер</div>
+              <div className="text-xs font-medium" style={{ color: "var(--reg-text-muted)" }}>Связь, которая не подводит</div>
             </div>
           </div>
 
           <h2 className="font-display font-black text-4xl leading-tight mb-5" style={{ color: "var(--reg-text-primary)" }}>
-            Работайте<br />
-            <span style={{ color: "var(--reg-accent)" }}>в одном</span><br />
-            пространстве
+            Вся команда<br />
+            <span style={{ color: "var(--reg-accent)" }}>на связи</span><br />
+            24/7
           </h2>
           <p className="text-base leading-relaxed" style={{ color: "var(--reg-text-muted)" }}>
-            Быстрые чаты, группы по бригадам,<br />
-            уведомления и контакты коллег —<br />
-            всё в одном приложении.
+            Никаких потерянных задач и пропущенных звонков. Общайтесь с бригадой мгновенно — где бы вы ни были.
           </p>
         </div>
 
@@ -137,7 +167,7 @@ export default function Register({ onRegister }: RegisterProps) {
             <div className="font-display font-black text-lg tracking-tight" style={{ color: "var(--reg-text-primary)" }}>
               Gruz<span style={{ color: "var(--reg-accent)" }}> off</span>
             </div>
-            <div className="text-[11px]" style={{ color: "var(--reg-text-muted)" }}>Корпоративный мессенджер</div>
+            <div className="text-[11px]" style={{ color: "var(--reg-text-muted)" }}>Связь, которая не подводит</div>
           </div>
         </div>
 
