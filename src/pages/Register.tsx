@@ -336,7 +336,7 @@ export default function Register({ onRegister }: RegisterProps) {
                 <Icon name="Calendar" size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: "var(--reg-icon)" }} />
                 <input
                   type="number"
-                  placeholder="Не менее 20 лет"
+                  placeholder="Введите возраст"
                   min={20} max={80}
                   value={form.age}
                   onChange={e => { setForm(f => ({ ...f, age: e.target.value })); setErrors(er => ({ ...er, age: "" })); }}
@@ -350,10 +350,7 @@ export default function Register({ onRegister }: RegisterProps) {
                   onBlur={e => { if (!errors.age) e.currentTarget.style.borderColor = "var(--reg-input-border)"; }}
                 />
               </div>
-              {errors.age
-                ? <p className="text-xs mt-1" style={{ color: "var(--reg-error)" }}>{errors.age}</p>
-                : <p className="text-xs mt-1" style={{ color: "var(--reg-text-muted)" }}>Принимаем сотрудников от 20 лет</p>
-              }
+              {errors.age && <p className="text-xs mt-1" style={{ color: "var(--reg-error)" }}>{errors.age}</p>}
             </div>
 
             {/* Телефон */}
