@@ -75,6 +75,7 @@ export default function App() {
         <div className={`h-full overflow-hidden ${activeTab === "orders" ? "block" : "hidden"}`}>
           <Orders
             user={user}
+            userId={user.id}
             isAdmin={isAdmin}
             onReply={(msg) => {
               setPendingChatMessage(msg);

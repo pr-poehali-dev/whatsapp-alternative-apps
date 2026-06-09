@@ -34,6 +34,19 @@
       "expectedStatus": 200,
       "expectedBody": { "ok": true },
       "bodyMatcher": "partial"
+    },
+    {
+      "name": "Отклик на заявку",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "action": "respond",
+        "orderId": 1,
+        "userId": 2
+      },
+      "expectedStatus": 200,
+      "expectedBody": { "ok": true },
+      "bodyMatcher": "partial"
     }
   ]
 }

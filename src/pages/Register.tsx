@@ -6,6 +6,7 @@ interface RegisterProps {
 }
 
 export interface UserData {
+  id: number;
   firstName: string;
   lastName: string;
   city: string;
@@ -129,7 +130,7 @@ export default function Register({ onRegister }: RegisterProps) {
       const parsed = typeof data === "string" ? JSON.parse(data) : data;
       if (parsed.ok) {
         onRegister(
-          { firstName: parsed.user.firstName, lastName: parsed.user.lastName, city: parsed.user.city, age: parsed.user.age, role: "user" },
+          { id: parsed.user.id, firstName: parsed.user.firstName, lastName: parsed.user.lastName, city: parsed.user.city, age: parsed.user.age, role: "user" },
           parsed.user.phone
         );
       } else if (parsed.errors) {

@@ -16,11 +16,13 @@ interface Order {
   minHours: number;
   contactName: string;
   status: string;
+  responsesCount: number;
   createdAt: string;
 }
 
 interface OrdersProps {
   user: UserData;
+  userId: number;
   isAdmin: boolean;
   onReply: (message: string) => void;
 }
@@ -37,13 +39,15 @@ function timeAgo(dateStr: string) {
   return `${Math.floor(h / 24)} д назад`;
 }
 
-export default function Orders({ user, isAdmin, onReply }: OrdersProps) {
+export default function Orders({ user, userId, isAdmin, onReply }: OrdersProps) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [successId, setSuccessId] = useState<number | null>(null);
+  const [responding, setResponding] = useState(false);
+  const [respondedIds, setRespondedIds] = useState<Set<number>>(new Set());
 
   const [form, setForm] = useState({
     city: isAdmin ? "" : user.city,
@@ -124,6 +128,46 @@ export default function Orders({ user, isAdmin, onReply }: OrdersProps) {
     }
   };
 
+  const handleRespond = async (order: Order) => {
+    if (responding || respondedIds.has(order.id)) return;
+    setResponding(true);
+    try {
+      const res = await fetch(ORDERS_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "respond", orderId: order.id, userId }),
+      });
+      const raw = await res.json();
+      const data = typeof raw === "string" ? JSON.parse(raw) : raw;
+      if (data.ok) {
+        setRespondedIds(prev => new Set([...prev, order.id]));
+        // Обновляем заявку локально
+        setOrders(prev => prev.map(o => o.id === order.id
+          ? { ...o, responsesCount: data.responsesCount, status: data.status }
+          : o
+        ));
+        if (activeOrder?.id === order.id) {
+          setActiveOrder(prev => prev ? { ...prev, responsesCount: data.responsesCount, status: data.status } : prev);
+        }
+        // Открываем чат с сообщением
+        const msg = `Откликаюсь на заявку #${order.id} · ${order.city}${order.workDate ? ` · ${order.workDate}` : ""}${order.workTime ? `, ${order.workTime}` : ""}: ${order.description.slice(0, 80)}${order.description.length > 80 ? "..." : ""}`;
+        setActiveOrder(null);
+        onReply(msg);
+      } else {
+        // Уже откликался или набор закрыт — просто открываем чат
+        const msg = `Хочу откликнуться на заявку #${order.id} · ${order.city} · ${order.workDate}`;
+        setActiveOrder(null);
+        onReply(msg);
+      }
+    } catch {
+      const msg = `Откликаюсь на заявку #${order.id} · ${order.city}`;
+      setActiveOrder(null);
+      onReply(msg);
+    } finally {
+      setResponding(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
 
@@ -188,18 +232,22 @@ export default function Orders({ user, isAdmin, onReply }: OrdersProps) {
           </div>
         )}
 
-        {!loading && orders.map((order, i) => (
+        {!loading && orders.map((order, i) => {
+          const isClosed = order.status === 'closed';
+          const alreadyResponded = respondedIds.has(order.id);
+          return (
           <div
             key={order.id}
             onClick={() => setActiveOrder(order)}
             className="rounded-2xl p-4 cursor-pointer transition-all animate-fade-in"
             style={{
               background: "var(--reg-card)",
-              border: "1px solid rgba(255,255,255,0.07)",
+              border: `1px solid ${isClosed ? "rgba(100,100,120,0.2)" : "rgba(255,255,255,0.07)"}`,
+              opacity: isClosed ? 0.75 : 1,
               animationDelay: `${i * 0.05}s`,
             }}
-            onMouseEnter={e => (e.currentTarget.style.borderColor = "rgba(232,119,46,0.35)")}
-            onMouseLeave={e => (e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)")}
+            onMouseEnter={e => (e.currentTarget.style.borderColor = isClosed ? "rgba(100,100,120,0.35)" : "rgba(232,119,46,0.35)")}
+            onMouseLeave={e => (e.currentTarget.style.borderColor = isClosed ? "rgba(100,100,120,0.2)" : "rgba(255,255,255,0.07)")}
           >
             {/* Верх карточки */}
             <div className="flex items-start justify-between gap-2 mb-3">
@@ -214,6 +262,13 @@ export default function Orders({ user, isAdmin, onReply }: OrdersProps) {
                   <Icon name="Clock" size={11} />
                   {order.workDate}{order.workTime ? `, ${order.workTime}` : ""}
                 </span>
+                {isClosed && (
+                  <span className="flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg"
+                    style={{ background: "rgba(239,68,68,0.15)", color: "#f87171" }}>
+                    <Icon name="Lock" size={10} />
+                    Набор закрыт
+                  </span>
+                )}
               </div>
               <span className="text-[11px] flex-shrink-0" style={{ color: "var(--reg-text-muted)" }}>
                 {timeAgo(order.createdAt)}
@@ -258,20 +313,35 @@ export default function Orders({ user, isAdmin, onReply }: OrdersProps) {
                 <span className="text-xs" style={{ color: "var(--reg-text-muted)" }}>
                   мин. {order.minHours}ч
                 </span>
+                {/* Счётчик откликов */}
+                {(isAdmin || isClosed) && (
+                  <span className="text-xs font-semibold flex items-center gap-1"
+                    style={{ color: isClosed ? "#f87171" : "var(--reg-text-muted)" }}>
+                    <Icon name="UserCheck" size={11} />
+                    {order.responsesCount}/{order.workersCount}
+                  </span>
+                )}
               </div>
-              {!isAdmin && (
+              {!isAdmin && !isClosed && (
                 <button
                   onClick={e => { e.stopPropagation(); setActiveOrder(order); }}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white"
-                  style={{ background: "var(--reg-btn)" }}
+                  style={{ background: alreadyResponded ? "rgba(34,197,94,0.3)" : "var(--reg-btn)" }}
                 >
-                  <Icon name="Send" size={11} className="text-white" />
-                  Откликнуться
+                  <Icon name={alreadyResponded ? "Check" : "Send"} size={11} className="text-white" />
+                  {alreadyResponded ? "Откликнулся" : "Откликнуться"}
                 </button>
+              )}
+              {!isAdmin && isClosed && (
+                <span className="text-xs px-3 py-1.5 rounded-lg font-semibold"
+                  style={{ background: "rgba(239,68,68,0.12)", color: "#f87171" }}>
+                  Закрыто
+                </span>
               )}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* ── МОДАЛКА СОЗДАНИЯ ЗАЯВКИ ── */}
@@ -504,22 +574,38 @@ export default function Orders({ user, isAdmin, onReply }: OrdersProps) {
               </div>
             </div>
 
-            {!isAdmin && (
-              <button
-                className="w-full py-3.5 rounded-xl font-bold text-white text-sm"
-                style={{ background: "var(--reg-btn)" }}
-                onClick={() => {
-                  const msg = `Откликаюсь на заявку #${activeOrder.id} · ${activeOrder.city}${activeOrder.workDate ? ` · ${activeOrder.workDate}` : ""}${activeOrder.workTime ? `, ${activeOrder.workTime}` : ""}: ${activeOrder.description.slice(0, 80)}${activeOrder.description.length > 80 ? "..." : ""}`;
-                  setActiveOrder(null);
-                  onReply(msg);
-                }}
-              >
-                <span className="flex items-center justify-center gap-2">
-                  <Icon name="MessageCircle" size={16} className="text-white" />
-                  Написать в личку
-                </span>
-              </button>
-            )}
+            {!isAdmin && (() => {
+              const isClosed = activeOrder.status === 'closed';
+              const alreadyResponded = respondedIds.has(activeOrder.id);
+              if (isClosed) {
+                return (
+                  <div className="w-full py-3.5 rounded-xl text-center text-sm font-semibold"
+                    style={{ background: "rgba(239,68,68,0.1)", color: "#f87171", border: "1px solid rgba(239,68,68,0.2)" }}>
+                    <span className="flex items-center justify-center gap-2">
+                      <Icon name="Lock" size={16} />
+                      Набор закрыт — все места заняты
+                    </span>
+                  </div>
+                );
+              }
+              return (
+                <button
+                  className="w-full py-3.5 rounded-xl font-bold text-white text-sm transition-all"
+                  style={{ background: alreadyResponded ? "rgba(34,197,94,0.3)" : "var(--reg-btn)", opacity: responding ? 0.7 : 1 }}
+                  onClick={() => handleRespond(activeOrder)}
+                  disabled={responding}
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    {responding
+                      ? <><Icon name="Loader2" size={16} className="text-white animate-spin" />Отправляем...</>
+                      : alreadyResponded
+                        ? <><Icon name="CheckCircle" size={16} className="text-white" />Вы откликнулись</>
+                        : <><Icon name="MessageCircle" size={16} className="text-white" />Откликнуться и написать</>
+                    }
+                  </span>
+                </button>
+              );
+            })()}
           </div>
         </div>
       )}
