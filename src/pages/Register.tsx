@@ -1,8 +1,6 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
 
-type Role = "superadmin" | "admin" | "moderator" | "user";
-
 interface RegisterProps {
   onRegister: (user: UserData) => void;
 }
@@ -12,27 +10,19 @@ export interface UserData {
   lastName: string;
   city: string;
   age: number;
-  role: Role;
+  role: "superadmin" | "admin" | "moderator" | "user";
 }
 
-const ROLES: { id: Role; label: string; desc: string; color: string; icon: string }[] = [
-  { id: "superadmin", label: "Суперадмин", desc: "Полный доступ ко всему", color: "from-red-500 to-orange-500", icon: "ShieldCheck" },
-  { id: "admin", label: "Администратор", desc: "Управление командой", color: "from-violet-500 to-purple-600", icon: "Shield" },
-  { id: "moderator", label: "Модератор", desc: "Контроль контента", color: "from-blue-500 to-cyan-500", icon: "ShieldHalf" },
-  { id: "user", label: "Пользователь", desc: "Общение в чатах", color: "from-emerald-500 to-teal-500", icon: "User" },
-];
-
 const CITIES = [
-  "Москва", "Санкт-Петербург", "Новосибирск", "Екатеринбург", "Казань",
-  "Нижний Новгород", "Челябинск", "Самара", "Уфа", "Ростов-на-Дону",
-  "Краснодар", "Омск", "Воронеж", "Пермь", "Волгоград", "Красноярск",
-  "Тюмень", "Саратов", "Тольятти", "Барнаул",
+  "Симферополь", "Севастополь", "Керчь", "Евпатория", "Ялта",
+  "Феодосия", "Джанкой", "Саки", "Красноперекопск", "Армянск",
+  "Алушта", "Судак", "Старый Крым", "Бахчисарай", "Белогорск",
+  "Инкерман", "Щёлкино", "Октябрьское", "Нижнегорский", "Советский",
+  "Черноморское", "Раздольное", "Кировское", "Ленино", "Первомайское",
 ];
 
 export default function Register({ onRegister }: RegisterProps) {
-  const [step, setStep] = useState(1);
   const [form, setForm] = useState({ firstName: "", lastName: "", city: "", age: "" });
-  const [role, setRole] = useState<Role | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [citySearch, setCitySearch] = useState("");
   const [showCities, setShowCities] = useState(false);
@@ -53,18 +43,14 @@ export default function Register({ onRegister }: RegisterProps) {
     return Object.keys(e).length === 0;
   };
 
-  const handleStep1 = () => {
-    if (validate()) setStep(2);
-  };
-
   const handleSubmit = () => {
-    if (!role) return;
+    if (!validate()) return;
     onRegister({
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
       city: form.city,
       age: Number(form.age),
-      role,
+      role: "user",
     });
   };
 
@@ -84,31 +70,11 @@ export default function Register({ onRegister }: RegisterProps) {
         <p className="text-muted-foreground text-sm mt-1">Корпоративный мессенджер</p>
       </div>
 
-      {/* Индикатор шагов */}
-      <div className="flex items-center gap-3 mb-8 animate-fade-in delay-100">
-        <div className={`flex items-center gap-2 transition-all duration-300 ${step >= 1 ? "opacity-100" : "opacity-40"}`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${step >= 1 ? "btn-gradient text-white" : "bg-muted text-muted-foreground"}`}>
-            {step > 1 ? <Icon name="Check" size={14} /> : "1"}
-          </div>
-          <span className="text-sm font-medium hidden sm:block">Данные</span>
-        </div>
-        <div className={`w-12 h-[2px] rounded transition-all duration-500 ${step >= 2 ? "bg-gradient-to-r from-violet-500 to-cyan-500" : "bg-border"}`} />
-        <div className={`flex items-center gap-2 transition-all duration-300 ${step >= 2 ? "opacity-100" : "opacity-40"}`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${step >= 2 ? "btn-gradient text-white" : "bg-muted text-muted-foreground"}`}>
-            2
-          </div>
-          <span className="text-sm font-medium hidden sm:block">Роль</span>
-        </div>
-      </div>
-
       {/* Карточка формы */}
-      <div className="w-full max-w-md glass-card rounded-2xl p-6 sm:p-8 relative">
-
-        {/* ШАГ 1 */}
-        {step === 1 && (
-          <div className="animate-fade-in">
-            <h2 className="text-xl font-bold mb-1">Личные данные</h2>
-            <p className="text-muted-foreground text-sm mb-6">Заполните информацию о себе</p>
+      <div className="w-full max-w-md glass-card rounded-2xl p-6 sm:p-8 relative animate-fade-in delay-100">
+        <div className="animate-fade-in">
+            <h2 className="text-xl font-bold mb-1">Регистрация</h2>
+            <p className="text-muted-foreground text-sm mb-6">Заполните данные для входа</p>
 
             <div className="space-y-4">
               {/* Имя */}
@@ -200,65 +166,12 @@ export default function Register({ onRegister }: RegisterProps) {
             </div>
 
             <button
-              onClick={handleStep1}
-              className="btn-gradient w-full mt-6 py-3.5 rounded-xl font-semibold text-white text-sm relative z-10"
-            >
-              Продолжить →
-            </button>
-          </div>
-        )}
-
-        {/* ШАГ 2 — Выбор роли */}
-        {step === 2 && (
-          <div className="animate-fade-in">
-            <button
-              onClick={() => setStep(1)}
-              className="flex items-center gap-1.5 text-muted-foreground text-sm mb-4 hover:text-foreground transition-colors"
-            >
-              <Icon name="ArrowLeft" size={16} />
-              Назад
-            </button>
-            <h2 className="text-xl font-bold mb-1">Выберите роль</h2>
-            <p className="text-muted-foreground text-sm mb-6">Роль определяет ваши права в системе</p>
-
-            <div className="space-y-3">
-              {ROLES.map((r, i) => (
-                <button
-                  key={r.id}
-                  type="button"
-                  onClick={() => setRole(r.id)}
-                  className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all duration-200 animate-fade-in text-left ${
-                    role === r.id
-                      ? "border-primary/60 bg-primary/10 shadow-lg shadow-primary/10"
-                      : "border-border hover:border-primary/30 hover:bg-white/5"
-                  }`}
-                  style={{ animationDelay: `${i * 0.08}s` }}
-                >
-                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${r.color} flex items-center justify-center flex-shrink-0`}>
-                    <Icon name={r.icon} size={20} className="text-white" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-sm">{r.label}</div>
-                    <div className="text-muted-foreground text-xs">{r.desc}</div>
-                  </div>
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                    role === r.id ? "border-primary bg-primary" : "border-border"
-                  }`}>
-                    {role === r.id && <Icon name="Check" size={11} className="text-white" />}
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            <button
               onClick={handleSubmit}
-              disabled={!role}
-              className={`btn-gradient w-full mt-6 py-3.5 rounded-xl font-semibold text-white text-sm relative z-10 transition-opacity ${!role ? "opacity-40 cursor-not-allowed" : ""}`}
+              className="btn-gradient w-full mt-6 py-3.5 rounded-xl font-semibold text-white text-sm relative z-10"
             >
               Войти в WorkChat 🚀
             </button>
           </div>
-        )}
       </div>
 
       <p className="text-muted-foreground/40 text-xs mt-6 text-center">
